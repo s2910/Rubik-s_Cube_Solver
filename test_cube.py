@@ -166,3 +166,30 @@ def test_face_moves_after_rotation_follow_the_new_orientation():
     # y turns the cube like U: front -> left, left -> back, back -> right.
     # So the layer now on the right is the old back layer: "y R" == "B y".
     assert Cube().apply("R U F y R").state == Cube().apply("R U F B y").state
+
+
+# ---- slice and wide moves ------------------------------------------------
+
+from cube import ALL_MOVES, EXTRA  # noqa: E402
+
+
+@pytest.mark.parametrize("wide,parts", [
+    ("x", "R M' L'"), ("y", "U E' D'"), ("z", "F S B'"),
+    ("r", "R M'"), ("l", "L M"), ("u", "U E'"),
+    ("d", "D E"), ("f", "F S"), ("b", "B S'"),
+])
+def test_slice_and_wide_moves_match_their_definitions(wide, parts):
+    base = Cube().apply("R U F")
+    a = Cube(base.state).apply(wide)
+    b = Cube(base.state).apply(parts)
+    assert a.state == b.state
+
+
+@pytest.mark.parametrize("move", list(EXTRA))
+def test_extra_moves_have_inverses(move):
+    c = Cube().apply([move] + invert_moves([move]))
+    assert c.is_solved()
+
+
+def test_all_moves_contains_every_family():
+    assert len(ALL_MOVES) == 18 + 9 + 27

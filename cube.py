@@ -104,11 +104,41 @@ for _name, _face in (("x", "R"), ("y", "U"), ("z", "F")):
     ROTATIONS[_name + "'"] = _compose(_r2, _r)
 
 
+def _build_layer_move(axis, depths):
+    """Turn every layer whose coordinate along `axis` is in `depths`."""
+    dest = list(range(54))
+    for i, (pos, normal) in enumerate(SLOTS):
+        if _dot(pos, axis) in depths:
+            dest[i] = SLOT_INDEX[(_rotate_cw(pos, axis), _rotate_cw(normal, axis))]
+    return dest
+
+
+# Slice moves (M follows L, E follows D, S follows F) and wide moves
+# (r = R + M', l = L + M, u = U + E', d = D + E, f = F + S, b = B + S').
+_EXTRA_SPEC = {
+    "M": ((-1, 0, 0), {0}), "E": ((0, -1, 0), {0}), "S": ((0, 0, 1), {0}),
+    "r": ((1, 0, 0), {0, 1}), "l": ((-1, 0, 0), {0, 1}),
+    "u": ((0, 1, 0), {0, 1}), "d": ((0, -1, 0), {0, 1}),
+    "f": ((0, 0, 1), {0, 1}), "b": ((0, 0, -1), {0, 1}),
+}
+EXTRA = {}
+for _name, (_axis, _depths) in _EXTRA_SPEC.items():
+    _e = _build_layer_move(_axis, _depths)
+    _e2 = _compose(_e, _e)
+    EXTRA[_name] = _e
+    EXTRA[_name + "2"] = _e2
+    EXTRA[_name + "'"] = _compose(_e2, _e)
+
+# Everything apply() understands. MOVES alone is the 18 face moves that the
+# solvers search over; rotations and slice/wide moves are kept out of it.
+ALL_MOVES = {**MOVES, **ROTATIONS, **EXTRA}
+
+
 def parse_moves(text):
     """'R U R2 U'' -> ['R', 'U', 'R2', "U'"]. Accepts ’ as well as '."""
     tokens = text.replace("\u2019", "'").split()
     for t in tokens:
-        if t not in MOVES and t not in ROTATIONS:
+        if t not in ALL_MOVES:
             raise ValueError(f"Unknown move: {t!r}")
     return tokens
 
@@ -165,7 +195,7 @@ class Cube:
         if isinstance(moves, str):
             moves = parse_moves(moves)
         for m in moves:
-            perm = MOVES[m] if m in MOVES else ROTATIONS[m]
+            perm = ALL_MOVES[m]
             new = self.state[:]
             for i, d in enumerate(perm):
                 new[d] = self.state[i]
